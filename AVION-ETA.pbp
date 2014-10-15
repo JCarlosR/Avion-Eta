@@ -1,0 +1,274 @@
+DEFINE OSC 4
+
+' Configuración del TIMER:
+DEFINE LOADER_USED 1   
+DEFINE HSER_BAUD 19200  
+
+DEFINE LCD_DREG PORTB
+DEFINE LCD_DBIT 4
+
+DEFINE LCD_RSREG PORTB
+DEFINE LCD_RSBIT 1
+
+DEFINE LCD_EREG PORTB
+DEFINE LCD_EBIT 2
+
+DEFINE LCD_BITS 4
+DEFINE LCD_LINES 2
+
+DEFINE LCD_COMMANDUS 2000
+DEFINE LCD_DATAUS 50
+
+' Inicio CGRAM:  
+LCDOUT $FE, $40
+' Avión - ASCII 0:
+LCDOUT 02, 06, 18, 31, 18, 06, 02, 00
+' Araña - ASCII 1:
+LCDOUT 00, 27, 14, 30, 14, 27, 00, 00
+' Pesa de 1KK - ASCII 2:
+LCDOUT 10, 31, 14, 04, 14, 31, 10, 00
+' Marciano - ASCII 3:
+LCDOUT 14, 04, 04, 31, 14, 14, 27, 00
+' Satélite - ASCII 4:
+LCDOUT 04, 14, 10, 14, 04, 14, 31, 00
+' Calamardo - ASCII 5:
+LCDOUT 31, 04, 04, 14, 21, 04, 14, 00
+' Llave de la (ASCII 6)ta puerta:
+LCDOUT 17, 14, 31, 14, 04, 04, 04, 00
+' Avion-eta's Enemy:
+LCDOUT 08, 12, 09, 31, 09, 12, 08, 00
+
+POS VAR BYTE   
+' POSICIONES: 64 - 103   
+POS = 0
+                         
+AUX VAR BYTE
+
+ESCENARIO VAR BYTE
+' Empieza en el ESCENARIO 0
+ESCENARIO = $FF
+
+GOSUB PINTAR_ESCENARIO
+
+EEPROM 0, [19,23,27,29,35,36 , 19,24,26,30,36,38 , 17,22,24,28,29,35 , 17,19,20,28,30,33] 
+EEPROM 24, [81,85,89,95,97,102 , 81,85,86,92,97,98 , 83,84,90,95,96,101 , 86,88,89,99,101,102]
+
+VIDAS VAR BYTE ' Indica la cantidad de vidas
+VIDAS = 30
+
+' Aquí yacen SUBIR y BAJAR (RIP)
+PUNTAJE VAR WORD ' Puntaje: Cantidad de avances dados
+
+' Variables para el FOR y lectura de EEPROM
+I VAR BYTE
+C VAR BYTE
+
+R_0 VAR BIT
+AR0 VAR BIT
+Ticks VAR BYTE
+
+On Interrupt Goto ProcesarInterrupt
+OPTION_REG = $55 ' Configuración de TMR0
+INTCON = %10110000 ' Habilitar ambas interrupciones
+
+FuncPrincipal: 
+    R_0 = PORTC.0 ' Resetear
+    ' Aquí yacen R_1 y R_2 ...
+
+   ' RC0: Resetea todo el juego
+    IF AR0=0 AND R_0=1 THEN
+      GOSUB RESETEO
+    ENDIF
+     'AND OPTION_REG=$57   
+    IF VIDAS=0 THEN GOSUB FINALIZAR 
+    ' Si se juntaban, el destino igual las iba a separar.
+
+    AR0 = R_0
+    ' Aquí yacen AR1 y AR2 [:(|)]
+GOTO FuncPrincipal
+
+AVANCE:
+    LCDOUT $FE,128+POS
+    LCDOUT " "    
+    
+    LCDOUT $FE, $1C
+    ' Si está al borde, da la vuelta
+    IF POS=88 OR POS=24 THEN
+        POS=POS-24 ' Mantiene arriba si debe ir arriba
+        ' POS puede ser 0 o 64
+        GOSUB MOVERSE_ADELANTE
+    ELSE
+        POS = POS+1
+    ENDIF
+ 
+    ' NO ES NECESARIO EL LCDOUT $FE, 128+POS              
+    LCDOUT $FE, 128+POS, 0           
+    GOSUB VERIFICAR_COLISION
+    
+    PUNTAJE = PUNTAJE+1
+    'GOSUB PINTAR_VIDAS ' Actualizamos ya que antes se verificó colisión
+RETURN
+
+PINTAR_VIDAS:
+    IF POS<64 THEN
+        LCDOUT $FE, 128+POS+14
+    ELSE
+        LCDOUT $FE, 128+POS-64+14
+    ENDIF    
+    LCDOUT " ", DEC VIDAS
+RETURN
+
+VERIFICAR_COLISION:
+    IF ESCENARIO=0 THEN
+        ESCENARIO=3
+    ELSE
+        ESCENARIO=ESCENARIO-1
+    ENDIF
+    FOR I=ESCENARIO*6 TO ESCENARIO*6+5 STEP 1
+        READ I,C
+        IF C>24 THEN
+            C = C-24
+            IF C=POS THEN
+                ' Se le devuelve lo que le fue arrebatado
+                VIDAS=VIDAS-1
+                ESCENARIO = ESCENARIO+1
+                IF ESCENARIO=4 THEN ESCENARIO=0
+                RETURN
+            ENDIF
+        ENDIF        
+        READ I+24,C
+        IF C>88 THEN
+            C = C-24
+            IF C=POS THEN
+                ' Se le devuelve lo que le fue arrebatado
+                VIDAS=VIDAS-1
+                ESCENARIO = ESCENARIO+1
+                IF ESCENARIO=4 THEN ESCENARIO=0
+                RETURN
+            ENDIF
+        ENDIF
+    NEXT I
+    ESCENARIO = ESCENARIO+1
+    IF ESCENARIO = 4 THEN ESCENARIO = 0
+    FOR I=ESCENARIO*6 TO ESCENARIO*6+5 STEP 1
+        READ I,C
+        IF C=POS THEN
+            VIDAS=VIDAS-1
+            RETURN
+        ENDIF    
+        READ I+24,C
+        IF C=POS THEN
+            VIDAS=VIDAS-1
+            RETURN
+        ENDIF
+    NEXT I  
+RETURN
+
+RESETEO:
+    PUNTAJE = 0
+    VIDAS = 3
+    POS = 64
+    ESCENARIO=$FF   
+    GOSUB PINTAR_ESCENARIO
+    ' Timer se reencarna:
+    INTCON = %10110000
+    Ticks=0   
+RETURN
+
+FINALIZAR:
+    LCDOUT $FE,$01
+    LCDOUT $FE,128+64
+    LCDOUT "PUNTAJE: ", DEC PUNTAJE
+    VIDAS = $FF
+    INTCON = 0 ' Desactivamos todito
+RETURN
+
+PINTAR_ESCENARIO:
+    ' Desactivamos las interrupciones:
+    INTCON = 0
+    
+    LCDOUT $FE,$01 ' CLEAR
+    
+    ' AQUÍ YACE ALGO QUE NUNCA LOGRAREMOS ENTENDER   
+    
+    IF ESCENARIO=$FF THEN
+    
+        LCDOUT $FE,128    
+        LCDOUT "    ", 05, " ", 07, "  ", 03 
+        LCDOUT $FE,128+64        
+        LCDOUT " ", 03, "         ", 06, " ", 01, 02
+        
+        FOR I=0 TO 5 STEP 1
+            READ I,C
+            LCDOUT $FE,128+C
+            LCDOUT C//7+1
+            READ I+24, C
+            LCDOUT $FE,128+C
+            LCDOUT C//7+1            
+        NEXT I        
+        ESCENARIO=0
+    ELSE 
+        FOR I=ESCENARIO*6 TO ESCENARIO*6+5 STEP 1
+            READ I,C
+            IF C>24 THEN 
+                LCDOUT $FE,128+C-24
+                LCDOUT C//7+1
+            ENDIF 
+            READ I+24,C
+            IF C>88 THEN
+                LCDOUT $FE,128+C-24
+                LCDOUT C//7+1        
+            ENDIF
+        NEXT I
+                 
+        ESCENARIO = ESCENARIO+1
+        IF ESCENARIO=4 THEN ESCENARIO=0
+        
+                 
+        FOR I=ESCENARIO*6 TO ESCENARIO*6+5 STEP 1
+            READ I,C
+            LCDOUT $FE,128+C
+            LCDOUT C//7+1
+            READ I+24,C
+            LCDOUT $FE,128+C
+            LCDOUT C//7+1             
+        NEXT I
+    ENDIF
+
+    ' Reactivamos las interrupciones:
+    INTCON = %10110000    
+RETURN
+
+MOVERSE_ADELANTE:
+    'FOR I=0 TO 15 STEP 1
+    '    LCDOUT $FE,$1C
+    'NEXT I
+    LCDOUT $FE, 2
+    GOSUB PINTAR_ESCENARIO
+RETURN
+
+DISABLE     ' INHABILITAR INTERRUPCIONES
+ProcesarInterrupt:   
+    IF INTCON.2 = 1 THEN
+        INTCON.2=0 
+        Ticks = Ticks + 1    ' Contamos los ticks
+        IF Ticks > 20 THEN   ' 30.5 ticks per half second 
+          ' Pasó un segundo:
+           Ticks = 0
+           GOSUB AVANCE 
+        ENDIF                 
+    ELSE 
+        INTCON.1=0      
+        'LCDOUT $FE, 128+POS, " "
+        ' Se presionó algo. ¿Qué botón?
+        IF PORTC.1=1 THEN
+            IF POS>64 THEN POS=POS-64
+        ELSE ' PORTC.1=0 ó PORTC.2=1 ó NADA         
+            IF PORTC.2=1 AND POS<64 THEN POS=POS+64
+        ENDIF 
+        'LCDOUT $FE,128+POS
+        'LCDOUT 0
+        
+    ENDIF          
+RESUME      ' REGRESAR AL LUGAR DONDE NOS QUEDAMOS
+ENABLE      ' HABILITAR LAS INTERRUPCIONES

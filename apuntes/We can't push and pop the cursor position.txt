@@ -1,0 +1,12 @@
+Supongamos lo siguiente para el programa principal:
+- LCDOUT $FE para posicionar el cursor
+- LCDOUT X para imprimir un caracter en esa posición
+
+Supongamos una interrupción de moverse hacia arriba/abajo justo en medio de las 2 acciones anteriores.
+
+Si deseamos que el movimiento sea al instante deberíamos redibujar allí mismo la avioneta (eliminar en pos actual, pintar donde corresponde).
+
+Si salvamos POS en AUX y luego de gestionar la interrupción hacemos AUX = POS pensamos que lo solucionaría pero lo único que hace ello es "deshacer" la subida o baja del avión (vuelve a volar o a caer en el turno siguiente).
+Además, el LCDOUT del programa principal no se aplica únicamente sobre POS (como al pintar obstáculos), y no lo ocurre en la graaaaaaaaaaaaaaaaan mayoría de los casos.
+
+Solución temporal: Es inhumano, in-máquina que se pueda subir o bajar al instante, mucho más rápido que la velocidad a la que se viaja.

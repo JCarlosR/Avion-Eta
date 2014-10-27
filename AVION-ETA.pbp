@@ -55,7 +55,7 @@ EEPROM 24, [81,85,89,95,97,102 , 81,85,86,92,97,98 , 83,84,90,95,96,101 , 86,88,
 
 ' Indica la cantidad de vidas
 VIDAS VAR BYTE 
-VIDAS = 20 ' Good grades
+VIDAS = 30 ' Good grades
 
 ' Puntaje: Cantidad de avances dados
 PUNTAJE VAR WORD 
@@ -110,8 +110,8 @@ AVANCE:
     
     LCDOUT $FE, $1C
     ' Si está al borde, da la vuelta
-    IF POS=88 OR POS=24 THEN
-        POS=POS-24 ' Mantiene arriba si debe ir arriba
+    IF POS=87 OR POS=23 THEN
+        POS=POS-23 ' Mantiene arriba si debe ir arriba
         ' POS puede ser 0 o 64
         GOSUB MOVERSE_ADELANTE
     ELSE
@@ -215,12 +215,12 @@ PINTAR_ESCENARIO:
     ELSE 
         FOR I=ESCENARIO*6 TO ESCENARIO*6+5 STEP 1
             READ I,C
-            IF C>24 THEN 
-                LCDOUT $FE,128+C-24
+            IF C>23 THEN 
+                LCDOUT $FE,128+C-24 'Lo correcto seria cambiar tambien este 24 por 23, pero al hacerlo ocurre el delay
                 LCDOUT C//7+1
             ENDIF 
             READ I+24,C
-            IF C>88 THEN
+            IF C>87 THEN
                 LCDOUT $FE,128+C-24
                 LCDOUT C//7+1        
             ENDIF

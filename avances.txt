@@ -1,8 +1,7 @@
 Juego que consiste en evitar obstáculos, desarrollado en Microcode Studio con la programación del PIC 16F876 sobre un LCD de 2x16.
 
-Porcentaje de avance: 50.005%
+Porcentaje de avance: 65%
 
 Características por implementar
 - Solucionar el delay que ocurre al alcanzar la POS 24 y 88.
-- Añadir posibilidad de acelerar a 3 niveles
-- Eliminar código redundante por supresión de PINTAR_VIDAS
+- Cuestionar al docente si lo quiere con OPTION_REG o con Ticks.
